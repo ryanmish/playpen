@@ -22,27 +22,27 @@ Use `/playpen` when a task involves risk to the host machine or when full permis
 - Running Ralph Wiggum loops (`/ralph-loop`) on risky tasks
 - Dispatching autonomous work while continuing the current conversation
 
-## Two Modes
+## Three Modes
 
-### Interactive Mode (user opens a new terminal)
+All three can be run from the current session using the Bash tool.
 
-For when the user wants to work inside the sandbox directly:
+### Spawn Mode (recommended for interactive dispatch)
+
+Opens a new Terminal.app tab with a full interactive Playpen session. The current session stays free.
 
 ```bash
-playpen /path/to/project
+playpen --spawn /path/to/project
 ```
 
-Do NOT run this from the current session. Provide the command for the user to copy and run in a separate terminal.
+Use this when the user wants to work inside the sandbox themselves, or when you want to hand off a task for interactive use (e.g., "go explore this repo in a sandbox").
 
-### Headless Mode (dispatch from current session)
+### Headless Mode (fire and forget)
 
-For when you want to fire off autonomous work in the background. You CAN run this directly from the current session using the Bash tool:
+Launches a detached container running Claude Code in print mode (`-p`). No terminal, no interaction. Pure autonomous execution.
 
 ```bash
 playpen --headless "Your detailed prompt here" /path/to/project
 ```
-
-This launches a detached container that runs Claude Code in print mode (`-p`). The current session stays free.
 
 **Typical headless flow:**
 1. Collaborate with the user to write a PRD, plan, or detailed brief
@@ -50,24 +50,23 @@ This launches a detached container that runs Claude Code in print mode (`-p`). T
 3. Monitor progress with `docker logs -f playpen-<project-name>`
 4. The user reviews changes via `git diff` when it finishes
 
-**Example dispatch:**
-
-```bash
-playpen --headless "Read PRD.md in this repo and implement the full feature. Write small commits as you go. When done, create a summary in RESULT.md." /Users/ryanmish/Dev/project
-```
-
 **Monitor the running container:**
 
 ```bash
-# Follow logs live
-docker logs -f playpen-project
-
-# Check if still running
-docker ps --filter name=playpen-project
-
-# Stop if needed
-docker stop playpen-project
+docker logs -f playpen-project    # follow logs
+docker ps --filter name=playpen-project  # check status
+docker stop playpen-project       # stop if needed
 ```
+
+### Interactive Mode (direct, blocks current terminal)
+
+For when the user manually runs playpen in their own terminal:
+
+```bash
+playpen /path/to/project
+```
+
+Do NOT run this bare command from the current session (it requires a TTY). Use `--spawn` or `--headless` instead.
 
 ## What Gets Mounted
 

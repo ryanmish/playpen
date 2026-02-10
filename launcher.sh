@@ -35,18 +35,24 @@ error()   { echo -e "${RED}[ERROR]${NC} $1" >&2; }
 # 1. Parse flags and validate argument
 # ---------------------------------------------------------------------------
 
+MODE="interactive"
 HEADLESS_PROMPT=""
 
 POSITIONAL=()
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --headless)
+            MODE="headless"
             if [[ -z "${2:-}" ]]; then
                 error "--headless requires a prompt argument"
                 exit 1
             fi
             HEADLESS_PROMPT="$2"
             shift 2
+            ;;
+        --spawn)
+            MODE="spawn"
+            shift
             ;;
         *)
             POSITIONAL+=("$1")
@@ -56,17 +62,18 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ ${#POSITIONAL[@]} -lt 1 ]]; then
-    echo -e "${BOLD}Usage:${NC} $(basename "$0") [--headless \"prompt\"] <path-to-project-folder>"
+    echo -e "${BOLD}Usage:${NC} $(basename "$0") [OPTIONS] <path-to-project-folder>"
     echo ""
     echo "  Launches Claude Code inside a sandboxed Docker container"
     echo "  with the given project folder mounted at /workspace."
     echo ""
     echo "  Modes:"
     echo "    Interactive (default):  $(basename "$0") ~/Dev/my-project"
+    echo "    New terminal tab:       $(basename "$0") --spawn ~/Dev/my-project"
     echo "    Headless (background):  $(basename "$0") --headless \"Build the feature\" ~/Dev/my-project"
     echo ""
-    echo "  In headless mode, the container runs detached. Check progress with:"
-    echo "    docker logs -f playpen-<project-name>"
+    echo "  --spawn opens a new Terminal.app tab with an interactive session."
+    echo "  --headless runs detached. Check with: docker logs -f playpen-<name>"
     exit 1
 fi
 
@@ -81,6 +88,22 @@ if [[ ! -d "$FOLDER_PATH" ]]; then
 fi
 
 FOLDER_NAME="$(basename "$FOLDER_PATH")"
+
+# ---------------------------------------------------------------------------
+# Handle --spawn: open a new Terminal.app tab and exit
+# ---------------------------------------------------------------------------
+
+if [[ "$MODE" == "spawn" ]]; then
+    ESCAPED_PATH=$(printf '%s' "$FOLDER_PATH" | sed "s/'/'\\\\''/g")
+    osascript -e "
+        tell application \"Terminal\"
+            activate
+            do script \"$HOME/.local/bin/playpen '${ESCAPED_PATH}'\"
+        end tell
+    "
+    info "Opened new Terminal tab for: $FOLDER_NAME"
+    exit 0
+fi
 
 # ---------------------------------------------------------------------------
 # 2. Print banner
