@@ -32,22 +32,46 @@ warn()    { echo -e "${YELLOW}[WARN]${NC} $1"; }
 error()   { echo -e "${RED}[ERROR]${NC} $1" >&2; }
 
 # ---------------------------------------------------------------------------
-# 1. Validate argument
+# 1. Parse flags and validate argument
 # ---------------------------------------------------------------------------
 
-if [[ $# -lt 1 ]]; then
-    echo -e "${BOLD}Usage:${NC} $(basename "$0") <path-to-project-folder>"
+HEADLESS_PROMPT=""
+
+POSITIONAL=()
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --headless)
+            if [[ -z "${2:-}" ]]; then
+                error "--headless requires a prompt argument"
+                exit 1
+            fi
+            HEADLESS_PROMPT="$2"
+            shift 2
+            ;;
+        *)
+            POSITIONAL+=("$1")
+            shift
+            ;;
+    esac
+done
+
+if [[ ${#POSITIONAL[@]} -lt 1 ]]; then
+    echo -e "${BOLD}Usage:${NC} $(basename "$0") [--headless \"prompt\"] <path-to-project-folder>"
     echo ""
     echo "  Launches Claude Code inside a sandboxed Docker container"
     echo "  with the given project folder mounted at /workspace."
     echo ""
-    echo "  Example:"
-    echo "    $(basename "$0") ~/Dev/my-project"
+    echo "  Modes:"
+    echo "    Interactive (default):  $(basename "$0") ~/Dev/my-project"
+    echo "    Headless (background):  $(basename "$0") --headless \"Build the feature\" ~/Dev/my-project"
+    echo ""
+    echo "  In headless mode, the container runs detached. Check progress with:"
+    echo "    docker logs -f playpen-<project-name>"
     exit 1
 fi
 
-FOLDER_PATH="$(cd "$1" 2>/dev/null && pwd)" || {
-    error "Path does not exist or is not accessible: $1"
+FOLDER_PATH="$(cd "${POSITIONAL[0]}" 2>/dev/null && pwd)" || {
+    error "Path does not exist or is not accessible: ${POSITIONAL[0]}"
     exit 1
 }
 
@@ -167,12 +191,23 @@ SAFE_NAME="$(echo "$FOLDER_NAME" | tr -cs 'a-zA-Z0-9_.-' '-' | sed 's/^-//;s/-$/
 CONTAINER_NAME="playpen-${SAFE_NAME}"
 
 # Start assembling the docker run arguments
-DOCKER_ARGS=(
-    run --rm -it
-    --name "$CONTAINER_NAME"
-    -v "$FOLDER_PATH":/workspace
-    -w /workspace
-)
+if [[ -n "$HEADLESS_PROMPT" ]]; then
+    # Headless mode: detached, no TTY
+    DOCKER_ARGS=(
+        run --rm -d
+        --name "$CONTAINER_NAME"
+        -v "$FOLDER_PATH":/workspace
+        -w /workspace
+    )
+else
+    # Interactive mode: foreground with TTY
+    DOCKER_ARGS=(
+        run --rm -it
+        --name "$CONTAINER_NAME"
+        -v "$FOLDER_PATH":/workspace
+        -w /workspace
+    )
+fi
 
 # Mount Claude config for OAuth auth
 if [[ -f "$CLAUDE_CONFIG" ]]; then
@@ -217,13 +252,30 @@ fi
 # Add the image name last
 DOCKER_ARGS+=("$IMAGE_NAME")
 
+# In headless mode, override the entrypoint to pass the prompt via -p
+if [[ -n "$HEADLESS_PROMPT" ]]; then
+    DOCKER_ARGS+=(-p "$HEADLESS_PROMPT")
+fi
+
 # ---------------------------------------------------------------------------
 # 7. Launch
 # ---------------------------------------------------------------------------
 
 echo ""
-info "Launching container '${CONTAINER_NAME}'..."
-echo -e "  ${BOLD}Workspace:${NC} $FOLDER_PATH -> /workspace"
-echo ""
-
-exec docker "${DOCKER_ARGS[@]}"
+if [[ -n "$HEADLESS_PROMPT" ]]; then
+    info "Launching headless container '${CONTAINER_NAME}'..."
+    echo -e "  ${BOLD}Workspace:${NC} $FOLDER_PATH -> /workspace"
+    echo -e "  ${BOLD}Prompt:${NC} ${HEADLESS_PROMPT:0:80}$([ ${#HEADLESS_PROMPT} -gt 80 ] && echo '...')"
+    echo ""
+    CONTAINER_ID=$(docker "${DOCKER_ARGS[@]}")
+    info "Container running in background: ${CONTAINER_NAME}"
+    echo ""
+    echo "  Monitor:  docker logs -f ${CONTAINER_NAME}"
+    echo "  Status:   docker ps --filter name=${CONTAINER_NAME}"
+    echo "  Stop:     docker stop ${CONTAINER_NAME}"
+else
+    info "Launching container '${CONTAINER_NAME}'..."
+    echo -e "  ${BOLD}Workspace:${NC} $FOLDER_PATH -> /workspace"
+    echo ""
+    exec docker "${DOCKER_ARGS[@]}"
+fi

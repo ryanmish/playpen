@@ -2,6 +2,7 @@
 name: playpen
 description: Launch a sandboxed Claude Code session in an isolated Docker container. Use when tasks involve risk to the host machine or when full permissions are needed with isolation.
 argument-hint: "[path-to-project]"
+allowed-tools: Bash(playpen *), Bash(docker logs *), Bash(docker ps *), Bash(docker stop *)
 ---
 
 # Playpen - Sandboxed Claude Code
@@ -19,23 +20,54 @@ Use `/playpen` when a task involves risk to the host machine or when full permis
 - Running code from third-party repos you haven't audited
 - Any task where `--dangerously-skip-permissions` would be useful but you want a safety net
 - Running Ralph Wiggum loops (`/ralph-loop`) on risky tasks
+- Dispatching autonomous work while continuing the current conversation
 
-## How to Launch
+## Two Modes
 
-Provide the user with the terminal command:
+### Interactive Mode (user opens a new terminal)
+
+For when the user wants to work inside the sandbox directly:
 
 ```bash
 playpen /path/to/project
 ```
 
-If `$ARGUMENTS` is provided, use it as the project path. Otherwise, determine the path from context or ask the user.
+Do NOT run this from the current session. Provide the command for the user to copy and run in a separate terminal.
 
-The `playpen` CLI is at `~/.local/bin/playpen`. It:
-1. Starts Colima (Docker VM) if not already running
-2. Builds the container image if needed
-3. Mounts the project folder at `/workspace` (read-write)
-4. Mounts all Claude Code plugins (ralph-wiggum, compound-engineering, etc.)
-5. Launches Claude Code with full permissions inside the container
+### Headless Mode (dispatch from current session)
+
+For when you want to fire off autonomous work in the background. You CAN run this directly from the current session using the Bash tool:
+
+```bash
+playpen --headless "Your detailed prompt here" /path/to/project
+```
+
+This launches a detached container that runs Claude Code in print mode (`-p`). The current session stays free.
+
+**Typical headless flow:**
+1. Collaborate with the user to write a PRD, plan, or detailed brief
+2. Dispatch it to a Playpen container with `--headless`
+3. Monitor progress with `docker logs -f playpen-<project-name>`
+4. The user reviews changes via `git diff` when it finishes
+
+**Example dispatch:**
+
+```bash
+playpen --headless "Read PRD.md in this repo and implement the full feature. Write small commits as you go. When done, create a summary in RESULT.md." /Users/ryanmish/Dev/project
+```
+
+**Monitor the running container:**
+
+```bash
+# Follow logs live
+docker logs -f playpen-project
+
+# Check if still running
+docker ps --filter name=playpen-project
+
+# Stop if needed
+docker stop playpen-project
+```
 
 ## What Gets Mounted
 
@@ -63,12 +95,8 @@ MCP servers (Playwright, Supabase, Figma) are **not** available.
 - Container is destroyed on exit (anything outside `/workspace` is lost)
 - Cold start takes 10-30 seconds if Colima VM is not running
 
-## Important
-
-Do NOT attempt to run `playpen` from within this Claude Code session. It launches an interactive Docker container that requires its own terminal. Provide the command for the user to copy and run.
-
-The user can also right-click any folder in Finder and select Quick Actions > "Claude in Sandbox" to launch Playpen without the terminal.
-
 ## Prerequisites
 
 Playpen requires initial setup. If the user hasn't installed it yet, point them to the repo's `setup.sh` script which installs Colima, Docker CLI, builds the image, and creates the Finder Quick Action.
+
+The user can also right-click any folder in Finder and select Quick Actions > "Claude in Sandbox" to launch Playpen interactively.
