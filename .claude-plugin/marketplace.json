@@ -1,0 +1,20 @@
+{
+  "name": "playpen",
+  "owner": {
+    "name": "Ryan Mish",
+    "url": "https://github.com/ryanmish"
+  },
+  "metadata": {
+    "description": "Sandboxed Claude Code via Docker containers",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "playpen",
+      "source": "./playpen-skill",
+      "description": "Launch sandboxed Claude Code sessions in isolated Docker containers",
+      "version": "1.0.0",
+      "tags": ["sandbox", "docker", "security", "isolation"]
+    }
+  ]
+}

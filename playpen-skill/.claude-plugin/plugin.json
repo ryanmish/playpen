@@ -1,0 +1,10 @@
+{
+  "name": "playpen",
+  "version": "1.0.0",
+  "description": "Launch sandboxed Claude Code sessions in isolated Docker containers",
+  "author": {
+    "name": "Ryan Mish",
+    "url": "https://github.com/ryanmish"
+  },
+  "keywords": ["sandbox", "docker", "security", "isolation", "colima"]
+}
