@@ -12,7 +12,8 @@ set -euo pipefail
 # ---------------------------------------------------------------------------
 
 # Directory where this script lives (contains Dockerfile, sandbox-claude.md, etc.)
-PLAYPEN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Resolve symlinks so we find the real directory, not ~/.local/bin/
+PLAYPEN_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || realpath "${BASH_SOURCE[0]}")")" && pwd)"
 IMAGE_NAME="playpen"
 CLAUDE_CONFIG="$HOME/.claude.json"
 
@@ -234,7 +235,7 @@ fi
 
 # Mount Claude config for OAuth auth
 if [[ -f "$CLAUDE_CONFIG" ]]; then
-    DOCKER_ARGS+=(-v "$CLAUDE_CONFIG":/root/.claude.json:ro)
+    DOCKER_ARGS+=(-v "$CLAUDE_CONFIG":/home/playpen/.claude.json:ro)
     info "Mounting ~/.claude.json (auth)"
 fi
 
@@ -246,7 +247,7 @@ fi
 
 # Conditionally mount .gitconfig (read-only)
 if [[ -f "$HOME/.gitconfig" ]]; then
-    DOCKER_ARGS+=(-v "$HOME/.gitconfig":/root/.gitconfig:ro)
+    DOCKER_ARGS+=(-v "$HOME/.gitconfig":/home/playpen/.gitconfig:ro)
     info "Mounting ~/.gitconfig"
 else
     warn "~/.gitconfig not found, skipping mount."
@@ -257,7 +258,7 @@ fi
 # and one at the host's absolute path so the installPath values in the JSON resolve.
 CLAUDE_PLUGINS_DIR="$HOME/.claude/plugins"
 if [[ -d "$CLAUDE_PLUGINS_DIR" ]]; then
-    DOCKER_ARGS+=(-v "$CLAUDE_PLUGINS_DIR":/root/.claude/plugins:ro)
+    DOCKER_ARGS+=(-v "$CLAUDE_PLUGINS_DIR":/home/playpen/.claude/plugins:ro)
     DOCKER_ARGS+=(-v "$CLAUDE_PLUGINS_DIR":"$CLAUDE_PLUGINS_DIR":ro)
     info "Mounting ~/.claude/plugins (plugins: ralph-wiggum, etc.)"
 else
@@ -266,7 +267,7 @@ fi
 
 # Mount sandbox-claude.md as the container's CLAUDE.md if it exists
 if [[ -f "$PLAYPEN_DIR/sandbox-claude.md" ]]; then
-    DOCKER_ARGS+=(-v "$PLAYPEN_DIR/sandbox-claude.md":/root/.claude/CLAUDE.md:ro)
+    DOCKER_ARGS+=(-v "$PLAYPEN_DIR/sandbox-claude.md":/home/playpen/.claude/CLAUDE.md:ro)
     info "Mounting sandbox-claude.md as container CLAUDE.md"
 else
     warn "sandbox-claude.md not found in $PLAYPEN_DIR, no CLAUDE.md will be injected."

@@ -44,6 +44,12 @@ RUN apt-get update && \
 RUN npm install -g @anthropic-ai/claude-code
 
 # ---------------------------------------------------------------------------
+# Non-root user (Claude Code refuses --dangerously-skip-permissions as root)
+# ---------------------------------------------------------------------------
+RUN useradd -m -s /bin/bash -u 1001 playpen
+USER playpen
+
+# ---------------------------------------------------------------------------
 # Workspace setup
 # ---------------------------------------------------------------------------
 WORKDIR /workspace
