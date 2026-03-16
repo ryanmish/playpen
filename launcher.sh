@@ -214,11 +214,17 @@ fi
 SAFE_NAME="$(echo "$FOLDER_NAME" | tr -cs 'a-zA-Z0-9_.-' '-' | sed 's/^-//;s/-$//')"
 CONTAINER_NAME="playpen-${SAFE_NAME}"
 
+# Run as host user so workspace files are writable and Claude Code
+# doesn't see root (which would block --dangerously-skip-permissions).
+HOST_UID="$(id -u)"
+HOST_GID="$(id -g)"
+
 # Start assembling the docker run arguments
 if [[ -n "$HEADLESS_PROMPT" ]]; then
     # Headless mode: detached, no TTY
     DOCKER_ARGS=(
         run --rm -d
+        --user "$HOST_UID:$HOST_GID"
         --name "$CONTAINER_NAME"
         -v "$FOLDER_PATH":/workspace
         -w /workspace
@@ -227,6 +233,7 @@ else
     # Interactive mode: foreground with TTY
     DOCKER_ARGS=(
         run --rm -it
+        --user "$HOST_UID:$HOST_GID"
         --name "$CONTAINER_NAME"
         -v "$FOLDER_PATH":/workspace
         -w /workspace

@@ -44,10 +44,13 @@ RUN apt-get update && \
 RUN npm install -g @anthropic-ai/claude-code
 
 # ---------------------------------------------------------------------------
-# Non-root user (Claude Code refuses --dangerously-skip-permissions as root)
+# Home directory for non-root runtime user
+# Claude Code refuses --dangerously-skip-permissions as root, so we run as
+# the host user's UID at launch (--user). This pre-created home directory
+# with open permissions lets any UID write to ~/.claude/ etc.
 # ---------------------------------------------------------------------------
-RUN useradd -m -s /bin/bash -u 1001 playpen
-USER playpen
+RUN mkdir -p /home/playpen/.claude && chmod -R 777 /home/playpen
+ENV HOME=/home/playpen
 
 # ---------------------------------------------------------------------------
 # Workspace setup
